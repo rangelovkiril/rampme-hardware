@@ -50,22 +50,22 @@ The emergency stop is a **normally closed (NC) button wired in series between th
 ## 🔌 Wiring Diagrams
 
 ### Stepper Motor + DM542 Driver
-![Stepper wiring](docs/stepper_wiring.png)
+![Stepper wiring](docs/stepper_motor.png)
 
 ### Buzzer + 2N2222A Transistor
-![Buzzer wiring](docs/buzzer_wiring.png)
+![Buzzer wiring](docs/buzzer.png)
 
 ### Green Deploy Button
-![Deploy button wiring](docs/button_deploy_wiring.png)
+![Deploy button wiring](docs/push-button-1.png)
 
 ### Red Retract Button
-![Retract button wiring](docs/button_retract_wiring.png)
+![Retract button wiring](docs/push-button-2.png)
 
 ### Emergency Stop
 ![Emergency stop wiring](docs/button_estop_wiring.png)
 
 ### LiDAR
-![LiDAR wiring](docs/lidar_wiring.png)
+![LiDAR wiring](docs/lidar.png)
 
 ---
 
