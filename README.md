@@ -1,59 +1,79 @@
-# RampMe Hardware
+# 🦽 RampMe Hardware
 
-Embedded hardware system for **RampMe** — an automatic wheelchair ramp for public transport in Sofia. Built for Hack TUES 12 under the theme *Code to Care*, subtheme *LimitLess*.
+> Embedded hardware system for **RampMe** — an automatic wheelchair ramp for public transport in Sofia.  
+> Built for **Hack TUES 12** · Theme: *Code to Care* · Subtheme: *LimitLess*
 
-## What It Does
+---
 
-A wheelchair user opens the RampMe PWA, selects their bus, stop, and arrival time. The system tracks the bus in real time using data from Център за градска мобилност. When the bus approaches the stop, an MQTT message is sent to the Raspberry Pi unit installed on that bus. The driver presses the green button to confirm deployment. The ramp extends via a lead screw driven by a stepper motor, with a buzzer providing audible feedback throughout. The driver can also manually control the ramp at any time using the two physical buttons. A hardware emergency stop button cuts power to the motor directly, bypassing the MCU entirely.
+## 📖 What It Does
 
-## Hardware
+A wheelchair user opens the RampMe PWA, selects their bus, stop, and arrival time. The system tracks the bus in real time using data from **Център за градска мобилност**. When the bus approaches the stop, an MQTT message is sent to the Raspberry Pi unit installed on that bus. The driver presses the green button to confirm deployment. The ramp extends via a lead screw driven by a stepper motor, with a buzzer providing audible feedback throughout. The driver can also manually control the ramp at any time using the two physical buttons. A hardware emergency stop button cuts power to the motor directly, bypassing the MCU entirely.
+
+---
+
+## 🔧 Hardware
 
 | Component | Part | Purpose |
 |---|---|---|
 | Compute | Raspberry Pi 4 | Edge controller, MQTT client |
 | Motor | Stepper motor + DM542 driver | Drives the lead screw to extend/retract the ramp |
 | Lead screw | Винтова предавка | Converts motor rotation to linear ramp movement |
-| Thermal camera | Grove MLX90640 110° | Detects human presence on ramp before retraction |
-| Environmental | Grove BME680 | Temperature, humidity, pressure, VOC monitoring |
 | Distance | LiDAR | Checks door clearance before deployment |
-| Colour | TCS34725 | RGB colour sensing |
 | Buzzer | PK-12N40PE-TQ + 2N2222A + 1kΩ | Audible alert while ramp is moving |
 | Deploy button | F24S1-1243GFS002 (green) | Driver initiates ramp deployment |
 | Retract button | F24S1-1243GFS002 (red) | Driver initiates ramp retraction |
 | Emergency stop | Normally closed button | Cuts 12V to DM542 driver directly — hardware level, MCU independent |
 
-## GPIO Pin Assignments
+---
+
+## 📌 GPIO Pin Assignments
 
 | Pin | Component | Role |
 |---|---|---|
 | GPIO 17 | Buzzer | Signal via 2N2222A transistor |
-| GPIO 23 | Stepper ENA- | Enable (common anode, active LOW) |
-| GPIO 24 | Stepper PUL- | Step pulse (common anode) |
-| GPIO 25 | Stepper DIR- | Direction |
+| GPIO 23 | Stepper driver ENA+ | Enable (common anode, active LOW) |
+| GPIO 24 | Stepper driver PUL+ | Step pulse (common anode) |
+| GPIO 25 | Stepper driver DIR+ | Direction |
 | GPIO 16 | Green button | Deploy — NO contact |
 | GPIO 12 | Red button | Retract — NO contact |
 
-I2C devices (BME680, MLX90640, TCS34725) share SDA (GPIO 2) and SCL (GPIO 3).
+> I2C devices (TFMINI-S) share **SDA (GPIO 2)** and **SCL (GPIO 3)**.
 
-## Emergency Stop
+---
 
-The emergency stop is a **normally closed (NC) button wired in series between the 12V supply and the DM542 driver**. Pressing it physically breaks the power circuit to the driver, stopping the motor instantly regardless of what the software is doing. This is the industry standard approach for emergency stops in motor control systems — no firmware can override it.
+## 🛑 Emergency Stop
 
-## Wiring Diagrams
+The emergency stop is a **normally closed (NC) button wired in series between the Enable input on the DM542 driver and the RPI**. Pressing it physically breaks the power circuit to the driver, stopping the motor instantly regardless of what the software is doing. This is the industry standard approach for emergency stops in motor control systems — no firmware can override it.
 
-| Diagram | File |
-|---|---|
-| Stepper motor + DM542 driver | [docs/stepper_wiring.png](docs/stepper_wiring.png) |
-| Buzzer + 2N2222A transistor | [docs/buzzer_wiring.png](docs/buzzer_wiring.png) |
-| Green deploy button | [docs/button_deploy_wiring.png](docs/button_deploy_wiring.png) |
-| Red retract button | [docs/button_retract_wiring.png](docs/button_retract_wiring.png) |
-| Emergency stop | [docs/button_estop_wiring.png](docs/button_estop_wiring.png) |
-| LiDAR | [docs/lidar_wiring.png](docs/lidar_wiring.png) |
+---
 
-## Software
+## 🔌 Wiring Diagrams
+
+### Stepper Motor + DM542 Driver
+![Stepper wiring](docs/stepper_wiring.png)
+
+### Buzzer + 2N2222A Transistor
+![Buzzer wiring](docs/buzzer_wiring.png)
+
+### Green Deploy Button
+![Deploy button wiring](docs/button_deploy_wiring.png)
+
+### Red Retract Button
+![Retract button wiring](docs/button_retract_wiring.png)
+
+### Emergency Stop
+![Emergency stop wiring](docs/button_estop_wiring.png)
+
+### LiDAR
+![LiDAR wiring](docs/lidar_wiring.png)
+
+---
+
+## 🗂 Software Structure
+
 ```
 drivers/
-  stepper_motor.py   # DM542 common anode stepper driver
+  stepper_motor.py   # stepper motor driver wrapper
   buzzer.py          # Buzzer with beep patterns
   push_button.py     # GPIO button with callback and polling
   ramp.py            # Ramp controller — buttons + MQTT deploy/retract
@@ -64,24 +84,38 @@ tests/
   ramp_test.py
 utils/
   logger.py
+setup.sh             # One-shot setup script for fresh Pi OS installs
 ```
 
-## Setup
+---
 
-Flash Raspberry Pi OS Lite 64-bit (Bookworm) then run:
+## ⚙️ Setup
+
+Flash **Raspberry Pi OS Lite 64-bit (Bookworm)** onto an SD card, then SSH in and run:
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
-This installs all dependencies, enables I2C/SPI/camera, starts Mosquitto, and enables avahi for mDNS (`pi-ht.local`).
+This will:
+- Install all Python dependencies and system packages
+- Enable I2C, SPI, and camera interfaces
+- Install and start Mosquitto MQTT broker
+- Enable avahi-daemon for mDNS (`pi-ht.local`)
+- Reboot when complete
 
-Clone the repo after setup:
+Then clone the repo:
+
 ```bash
 git clone git@github.com:rangelovkiril/rampme-hardware.git
 ```
 
-## MQTT Topics
+> ⚠️ `setup.sh` is not yet in the repo — add it before running on a fresh device.
+
+---
+
+## 📡 MQTT Topics
 
 | Topic | Direction | Purpose |
 |---|---|---|
@@ -91,20 +125,24 @@ git clone git@github.com:rangelovkiril/rampme-hardware.git
 | `ramp/{bus_id}/emergency` | Pi → PWA | Emergency stop triggered |
 | `ramp/{bus_id}/sensors` | Pi → PWA | Sensor readings |
 
-## Important Wiring Notes
+---
+
+## ⚠️ Important Wiring Notes
 
 - The DM542 uses **common anode** wiring — PUL+, DIR+, ENA+ connect to 5V, and the GPIO pins drive the negative terminals. Logic is inverted from standard drivers.
-- The buzzer runs on 5V from the step-down converter. GPIO 17 drives the base of a 2N2222A transistor through a 1kΩ resistor — never connect the buzzer directly to a GPIO pin.
-- Button LEDs connect to 5V via a ~220Ω resistor — do not connect directly to a GPIO pin.
+- The buzzer runs on 5V from the step-down converter. GPIO 17 drives the base of a 2N2222A transistor through a 1kΩ resistor — **never connect the buzzer directly to a GPIO pin**.
+- Button LEDs connect to 5V via a ~220Ω resistor — **do not connect directly to a GPIO pin**.
 - The emergency stop is wired at the power level, not the GPIO level. Do not attempt to replicate this in software.
-- GPIO 8, 9, 10, 11 are reserved for SPI. GPIO 2, 3 are reserved for I2C. Do not use these for buttons or other digital I/O.
-
-## Built With
-
-- Python 3 + RPi.GPIO
-- Mosquitto MQTT broker
-- Next.js PWA (see [rampme-frontend](https://github.com/rangelovkiril/rampme-frontend))
+- **GPIO 8, 9, 10, 11** are reserved for SPI. **GPIO 2, 3** are reserved for I2C. Do not use these for buttons or other digital I/O.
 
 ---
 
-*Hack TUES 12 — Code to Care — LimitLess*
+## 🛠 Built With
+
+- Python 3 + RPi.GPIO
+- Mosquitto MQTT broker
+- Next.js PWA → [rampme-software](https://github.com/rangelovkiril/rampme-software)
+
+---
+
+*Hack TUES 12 · Code to Care · LimitLess*
