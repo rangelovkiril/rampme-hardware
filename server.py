@@ -13,6 +13,7 @@ from drivers.ramp import Ramp
 from utils.logger import log
 
 import RPi.GPIO as GPIO
+
 GPIO.setmode(GPIO.BCM)
 
 BACKEND_URL = "https://rampme.site"
@@ -117,11 +118,13 @@ class Handler(BaseHTTPRequestHandler):
                     _running = True
                     threading.Thread(target=ramp_sequence, daemon=True).start()
 
-            body = json.dumps({
-                "at_stop": True,
-                "vehicle_id": VEHICLE_ID,
-                "ramp": ramp.get_status(),
-            }).encode()
+            body = json.dumps(
+                {
+                    "at_stop": True,
+                    "vehicle_id": VEHICLE_ID,
+                    "ramp": ramp.get_status(),
+                }
+            ).encode()
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

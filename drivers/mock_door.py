@@ -15,7 +15,11 @@ class MockDoor:
         """
         self.closed_threshold_cm = closed_threshold_cm
         self.lidar = Lidar(bus_id=bus_id, address=address)
-        log("INFO", "MOCK_DOOR", f"MockDoor initialized — closed threshold: {closed_threshold_cm}cm")
+        log(
+            "INFO",
+            "MOCK_DOOR",
+            f"MockDoor initialized — closed threshold: {closed_threshold_cm}cm",
+        )
 
     def is_open(self):
         """
@@ -33,10 +37,9 @@ class MockDoor:
         log(
             "INFO",
             "MOCK_DOOR",
-            f"Distance: {distance}cm — door is {'OPEN' if open else 'CLOSED'}"
+            f"Distance: {distance}cm — door is {'OPEN' if open else 'CLOSED'}",
         )
         return open
 
     def close(self):
         self.lidar.close()
-        

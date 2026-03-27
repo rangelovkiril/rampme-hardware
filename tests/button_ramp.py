@@ -1,9 +1,10 @@
 import RPi.GPIO as GPIO
-GPIO.setmode(GPIO.BCM)
 from drivers.stepper_motor import StepperMotor
 from drivers.buzzer import Buzzer
 from drivers.push_button import Button
 from drivers.ramp import Ramp
+
+GPIO.setmode(GPIO.BCM)
 
 motor = StepperMotor()
 deploy_button = Button(pin=16)

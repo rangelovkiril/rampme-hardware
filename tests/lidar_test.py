@@ -26,7 +26,9 @@ try:
     while time.time() - start < 10:
         if lidar.update():
             data = lidar.get_data()
-            print(f"Distance: {data['distance']:4d} cm | Strength: {data['strength']:5d} | Temp: {data['temperature']} °C")
+            print(
+                f"Distance: {data['distance']:4d} cm | Strength: {data['strength']:5d} | Temp: {data['temperature']} °C"
+            )
         else:
             print("Read failed")
         time.sleep(0.1)

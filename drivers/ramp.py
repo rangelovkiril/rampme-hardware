@@ -63,9 +63,7 @@ class Ramp:
     def _start_buzzer(self):
         if self.buzzer and not self._buzzer_running.is_set():
             self._buzzer_running.set()
-            self._beep_thread = threading.Thread(
-                target=self._beep_loop, daemon=True
-            )
+            self._beep_thread = threading.Thread(target=self._beep_loop, daemon=True)
             self._beep_thread.start()
 
     def _stop_buzzer(self):
@@ -96,7 +94,9 @@ class Ramp:
                 if self.deploy_button.is_pressed():
                     if not self._motor_moving.is_set():
                         if not self._door_is_clear():
-                            log("WARN", "RAMP", "Door is closed — button deploy blocked")
+                            log(
+                                "WARN", "RAMP", "Door is closed — button deploy blocked"
+                            )
                             if self.buzzer:
                                 self.buzzer.alert()
                             continue
