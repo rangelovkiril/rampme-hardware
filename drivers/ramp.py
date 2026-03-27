@@ -14,7 +14,7 @@ class Ramp:
         retract_button,
         buzzer=None,
         steps_per_tick=5,
-        delay=0.00007,
+        delay=0.00008,
     ):
         """
         Controls the ramp using two buttons and a stepper motor.
