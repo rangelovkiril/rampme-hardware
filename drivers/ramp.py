@@ -3,7 +3,10 @@ import threading
 from drivers.stepper_motor import StepperMotor
 from drivers.buzzer import Buzzer
 from drivers.push_button import Button
+from drivers.mock_door import MockDoor
 from utils.logger import log
+
+DEPLOY_STEPS = 80000
 
 
 class Ramp:
@@ -13,24 +16,15 @@ class Ramp:
         deploy_button,
         retract_button,
         buzzer=None,
+        mock_door=None,
         steps_per_tick=5,
-        delay=0.00008,
+        delay=0.0002,
     ):
-        """
-        Controls the ramp using two buttons and a stepper motor.
-
-        Args:
-            motor (StepperMotor): The stepper motor instance.
-            deploy_button (Button): Button that deploys (extends) the ramp.
-            retract_button (Button): Button that retracts the ramp.
-            buzzer (Buzzer): Optional buzzer instance. Pass None to disable.
-            steps_per_tick (int): Steps to move per polling loop iteration.
-            delay (float): Delay between steps (controls speed).
-        """
         self.motor = motor
         self.deploy_button = deploy_button
         self.retract_button = retract_button
         self.buzzer = buzzer
+        self.mock_door = mock_door
         self.steps_per_tick = steps_per_tick
         self.delay = delay
 
@@ -39,7 +33,27 @@ class Ramp:
         self._beep_thread = None
         self._running = False
 
+        self.is_deployed = False
+        self.is_moving = False
+
         log("INFO", "RAMP", "Ramp initialized")
+
+    def get_status(self):
+        return {
+            "is_deployed": self.is_deployed,
+            "is_moving": self.is_moving,
+            "safe_to_move": not self.is_deployed and not self.is_moving,
+        }
+
+    def _door_is_clear(self):
+        """Returns True if door is open or no door sensor configured."""
+        if self.mock_door is None:
+            return True
+        result = self.mock_door.is_open()
+        if result is None:
+            log("WARN", "RAMP", "Door sensor read failed — blocking movement")
+            return False
+        return result
 
     def _beep_loop(self):
         while self._buzzer_running.is_set():
@@ -65,13 +79,11 @@ class Ramp:
         if self._motor_moving.is_set():
             self.motor.disable()
             self._motor_moving.clear()
+            self.is_moving = False
             self._stop_buzzer()
             log("INFO", "RAMP", "Motor stopped")
 
     def run(self):
-        """
-        Starts the main polling loop. Blocks until Ctrl+C or stop() is called.
-        """
         self._running = True
         log("INFO", "RAMP", "Ramp control loop started")
 
@@ -79,11 +91,18 @@ class Ramp:
             while self._running:
                 if self.deploy_button.is_pressed():
                     if not self._motor_moving.is_set():
+                        if not self._door_is_clear():
+                            log("WARN", "RAMP", "Door is closed — button deploy blocked")
+                            if self.buzzer:
+                                self.buzzer.alert()
+                            continue
                         self.motor.enable()
                         self.motor.set_direction(clockwise=True)
                         self._motor_moving.set()
+                        self.is_moving = True
+                        self.is_deployed = True
                         self._start_buzzer()
-                        log("INFO", "RAMP", "Deploying ramp")
+                        log("INFO", "RAMP", "Deploying ramp via button")
                     self.motor.step(steps=self.steps_per_tick, delay=self.delay)
 
                 elif self.retract_button.is_pressed():
@@ -91,14 +110,14 @@ class Ramp:
                         self.motor.enable()
                         self.motor.set_direction(clockwise=False)
                         self._motor_moving.set()
+                        self.is_moving = True
+                        self.is_deployed = False
                         self._start_buzzer()
-                        log("INFO", "RAMP", "Retracting ramp")
+                        log("INFO", "RAMP", "Retracting ramp via button")
                     self.motor.step(steps=self.steps_per_tick, delay=self.delay)
 
                 else:
                     self._stop_motor()
-
-                time.sleep(0.001)
 
         except KeyboardInterrupt:
             pass
@@ -107,7 +126,59 @@ class Ramp:
             log("INFO", "RAMP", "Ramp control loop stopped")
 
     def stop(self):
-        """
-        Stops the main polling loop.
-        """
         self._running = False
+
+    def deploy(self):
+        if self._motor_moving.is_set():
+            log("WARN", "RAMP", "Deploy requested but motor already moving")
+            return
+
+        def _run():
+            log("INFO", "RAMP", "Deploying ramp via request")
+
+            if not self._door_is_clear():
+                log("WARN", "RAMP", "Door is closed — request deploy blocked")
+                if self.buzzer:
+                    self.buzzer.alert()
+                return
+
+            self.motor.enable()
+            self.motor.set_direction(clockwise=True)
+            self._motor_moving.set()
+            self.is_moving = True
+            self.is_deployed = True
+            self._start_buzzer()
+
+            steps_done = 0
+            while steps_done < DEPLOY_STEPS:
+                self.motor.step(steps=self.steps_per_tick, delay=self.delay)
+                steps_done += self.steps_per_tick
+
+            self._stop_motor()
+            log("INFO", "RAMP", "Deploy complete")
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def retract(self):
+        if self._motor_moving.is_set():
+            log("WARN", "RAMP", "Retract requested but motor already moving")
+            return
+
+        def _run():
+            log("INFO", "RAMP", "Retracting ramp via request")
+            self.motor.enable()
+            self.motor.set_direction(clockwise=False)
+            self._motor_moving.set()
+            self.is_moving = True
+            self.is_deployed = False
+            self._start_buzzer()
+
+            steps_done = 0
+            while steps_done < DEPLOY_STEPS:
+                self.motor.step(steps=self.steps_per_tick, delay=self.delay)
+                steps_done += self.steps_per_tick
+
+            self._stop_motor()
+            log("INFO", "RAMP", "Retract complete")
+
+        threading.Thread(target=_run, daemon=True).start()
