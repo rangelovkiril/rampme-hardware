@@ -1,3 +1,5 @@
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
 import time
 import threading
 from drivers.stepper_motor import StepperMotor
@@ -30,7 +32,7 @@ try:
     time.sleep(2)
 
     print("\n=== Test 2: HTTP deploy — clear the LiDAR ===")
-    ramp.deploy()
+    ramp.retract()
     time.sleep(0.3)
     while ramp.is_moving:
         time.sleep(0.1)

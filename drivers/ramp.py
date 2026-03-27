@@ -30,6 +30,7 @@ class Ramp:
 
         self._buzzer_running = threading.Event()
         self._motor_moving = threading.Event()
+        self._http_active = threading.Event()
         self._beep_thread = None
         self._running = False
 
@@ -46,7 +47,6 @@ class Ramp:
         }
 
     def _door_is_clear(self):
-        """Returns True if door is open or no door sensor configured."""
         if self.mock_door is None:
             return True
         result = self.mock_door.is_open()
@@ -72,7 +72,7 @@ class Ramp:
         if self.buzzer and self._buzzer_running.is_set():
             self._buzzer_running.clear()
             if self._beep_thread:
-                self._beep_thread.join()
+                self._beep_thread.join(timeout=1.0)
                 self._beep_thread = None
 
     def _stop_motor(self):
@@ -89,6 +89,10 @@ class Ramp:
 
         try:
             while self._running:
+                if self._http_active.is_set():
+                    time.sleep(0.01)
+                    continue
+
                 if self.deploy_button.is_pressed():
                     if not self._motor_moving.is_set():
                         if not self._door_is_clear():
@@ -133,29 +137,34 @@ class Ramp:
             log("WARN", "RAMP", "Deploy requested but motor already moving")
             return
 
+        self._http_active.set()
+
         def _run():
-            log("INFO", "RAMP", "Deploying ramp via request")
+            try:
+                log("INFO", "RAMP", "Deploying ramp via request")
 
-            if not self._door_is_clear():
-                log("WARN", "RAMP", "Door is closed — request deploy blocked")
-                if self.buzzer:
-                    self.buzzer.alert()
-                return
+                if not self._door_is_clear():
+                    log("WARN", "RAMP", "Door is closed — request deploy blocked")
+                    if self.buzzer:
+                        self.buzzer.alert()
+                    return
 
-            self.motor.enable()
-            self.motor.set_direction(clockwise=True)
-            self._motor_moving.set()
-            self.is_moving = True
-            self.is_deployed = True
-            self._start_buzzer()
+                self.motor.enable()
+                self.motor.set_direction(clockwise=True)
+                self._motor_moving.set()
+                self.is_moving = True
+                self.is_deployed = True
+                self._start_buzzer()
 
-            steps_done = 0
-            while steps_done < DEPLOY_STEPS:
-                self.motor.step(steps=self.steps_per_tick, delay=self.delay)
-                steps_done += self.steps_per_tick
+                steps_done = 0
+                while steps_done < DEPLOY_STEPS:
+                    self.motor.step(steps=self.steps_per_tick, delay=self.delay)
+                    steps_done += self.steps_per_tick
 
-            self._stop_motor()
-            log("INFO", "RAMP", "Deploy complete")
+                self._stop_motor()
+                log("INFO", "RAMP", "Deploy complete")
+            finally:
+                self._http_active.clear()
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -164,21 +173,26 @@ class Ramp:
             log("WARN", "RAMP", "Retract requested but motor already moving")
             return
 
+        self._http_active.set()
+
         def _run():
-            log("INFO", "RAMP", "Retracting ramp via request")
-            self.motor.enable()
-            self.motor.set_direction(clockwise=False)
-            self._motor_moving.set()
-            self.is_moving = True
-            self.is_deployed = False
-            self._start_buzzer()
+            try:
+                log("INFO", "RAMP", "Retracting ramp via request")
+                self.motor.enable()
+                self.motor.set_direction(clockwise=False)
+                self._motor_moving.set()
+                self.is_moving = True
+                self.is_deployed = False
+                self._start_buzzer()
 
-            steps_done = 0
-            while steps_done < DEPLOY_STEPS:
-                self.motor.step(steps=self.steps_per_tick, delay=self.delay)
-                steps_done += self.steps_per_tick
+                steps_done = 0
+                while steps_done < DEPLOY_STEPS:
+                    self.motor.step(steps=self.steps_per_tick, delay=self.delay)
+                    steps_done += self.steps_per_tick
 
-            self._stop_motor()
-            log("INFO", "RAMP", "Retract complete")
+                self._stop_motor()
+                log("INFO", "RAMP", "Retract complete")
+            finally:
+                self._http_active.clear()
 
         threading.Thread(target=_run, daemon=True).start()

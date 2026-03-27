@@ -21,7 +21,6 @@ class StepperMotor:
         self.direction = True
         self.enabled = False
 
-        GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.step_pin, GPIO.OUT)
         GPIO.setup(self.dir_pin, GPIO.OUT)
         GPIO.setup(self.sleep_pin, GPIO.OUT)

@@ -13,22 +13,15 @@ class Buzzer:
         """
         self.pin = pin
 
-        GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, GPIO.LOW)
 
         log("INFO", "BUZZER", "Buzzer initialized")
 
     def on(self):
-        """
-        Turns the buzzer on continuously.
-        """
         GPIO.output(self.pin, GPIO.HIGH)
 
     def off(self):
-        """
-        Turns the buzzer off.
-        """
         GPIO.output(self.pin, GPIO.LOW)
 
     def beep(self, duration=0.2):

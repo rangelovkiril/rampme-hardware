@@ -1,3 +1,5 @@
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
 from drivers.stepper_motor import StepperMotor
 from drivers.buzzer import Buzzer
 from drivers.push_button import Button
