@@ -50,22 +50,22 @@ The emergency stop is a **normally closed (NC) button wired in series between th
 ## 🔌 Wiring Diagrams
 
 ### Stepper Motor + DM542 Driver
-![Stepper wiring](docs/stepper_motor.png)
+![Stepper wiring](docs/wiring-diagrams/stepper_motor.png)
 
 ### Buzzer + 2N2222A Transistor
-![Buzzer wiring](docs/buzzer.png)
+![Buzzer wiring](docs/wiring-diagrams/buzzer.png)
 
 ### Green Deploy Button
-![Deploy button wiring](docs/push-button-1.png)
+![Deploy button wiring](docs/wiring-diagrams/push-button-1.png)
 
 ### Red Retract Button
-![Retract button wiring](docs/push-button-2.png)
+![Retract button wiring](docs/wiring-diagrams/push-button-2.png)
 
 ### Emergency Stop
-![Emergency stop wiring](docs/button_estop_wiring.png)
+> ⚠️ Wiring diagram coming soon.
 
 ### LiDAR
-![LiDAR wiring](docs/lidar.png)
+![LiDAR wiring](docs/wiring-diagrams/lidar.png)
 
 ---
 
@@ -76,12 +76,10 @@ drivers/
   stepper_motor.py   # stepper motor driver wrapper
   buzzer.py          # Buzzer with beep patterns
   push_button.py     # GPIO button with callback and polling
-  ramp.py            # Ramp controller — buttons + MQTT deploy/retract
 tests/
   stepper_test.py
   buzzer_test.py
   push_button_test.py
-  ramp_test.py
 utils/
   logger.py
 setup.sh             # One-shot setup script for fresh Pi OS installs
@@ -112,18 +110,6 @@ git clone git@github.com:rangelovkiril/rampme-hardware.git
 ```
 
 > ⚠️ `setup.sh` is not yet in the repo — add it before running on a fresh device.
-
----
-
-## 📡 MQTT Topics
-
-| Topic | Direction | Purpose |
-|---|---|---|
-| `ramp/{bus_id}/deploy` | PWA → Pi | Trigger ramp deployment |
-| `ramp/{bus_id}/retract` | PWA → Pi | Trigger ramp retraction |
-| `ramp/{bus_id}/status` | Pi → PWA | Current ramp state |
-| `ramp/{bus_id}/emergency` | Pi → PWA | Emergency stop triggered |
-| `ramp/{bus_id}/sensors` | Pi → PWA | Sensor readings |
 
 ---
 
