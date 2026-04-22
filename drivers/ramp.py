@@ -1,9 +1,10 @@
-import time
 import threading
-from drivers.stepper_motor import StepperMotor
+import time
+
 from drivers.buzzer import Buzzer
-from drivers.push_button import Button
 from drivers.mock_door import MockDoor
+from drivers.push_button import Button
+from drivers.stepper_motor import StepperMotor
 from utils.logger import log
 
 DEPLOY_STEPS = 80000

@@ -1,5 +1,10 @@
 import time
+
+import RPi.GPIO as GPIO
+
 from drivers.buzzer import Buzzer
+
+GPIO.setmode(GPIO.BCM)
 
 buzzer = Buzzer()
 
