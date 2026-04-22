@@ -108,7 +108,7 @@ def publish_state(state: str, reason: str | None = None) -> None:
     payload: dict = {"state": state}
     if reason:
         payload["reason"] = reason
-    _client.publish(STATE_TOPIC, json.dumps(payload), qos=1, retain=True)
+    _client.publish(STATE_TOPIC, json.dumps(payload), qos=2, retain=True)
     log("INFO", "SERVER", f"→ state={state}" + (f" ({reason})" if reason else ""))
 
 
@@ -190,7 +190,7 @@ def _on_connect(client, userdata, flags, rc, properties=None):
         log("ERROR", "MQTT", f"Connection failed rc={rc}")
         return
     log("INFO", "MQTT", f"Connected to {MQTT_URL}:{MQTT_PORT}")
-    client.subscribe(CMD_TOPIC, qos=1)
+    client.subscribe(CMD_TOPIC, qos=2)
     log("INFO", "MQTT", f"Subscribed to {CMD_TOPIC}")
     publish_state("idle")
 
@@ -247,7 +247,7 @@ def main():
     client.will_set(
         STATE_TOPIC,
         json.dumps({"state": "error", "reason": "disconnected"}),
-        qos=1,
+        qos=2,
         retain=True,
     )
 
