@@ -3,12 +3,12 @@
 server.py — Hardware MQTT client for the RampMe ramp.
 
 Topics:
-  ramp/{VEHICLE_ID}/cmd     (subscribe)
+  ramp/+/cmd     (subscribe — any vehicle ID)
     { action: "new_reservation",    id: <int> }
     { action: "cancel_reservation", id: <int> }
     { action: "deploy" }
 
-  ramp/{VEHICLE_ID}/state   (publish, retained)
+  ramp/{id}/state   (publish, retained — mirrors the ID from the incoming cmd topic)
     { state: "idle" | "deploying" | "deployed" | "retracting" | "done" | "error",
       reason?: str }
 
@@ -50,7 +50,7 @@ PER_PASSENGER_SECONDS = 20
 DOOR_POLL_INTERVAL = 0.5
 
 CMD_TOPIC = "ramp/+/cmd"
-STATE_TOPIC = f"ramp/{VEHICLE_ID}/state"
+# STATE_TOPIC is built dynamically from the incoming cmd topic's vehicle ID
 
 # ── Hardware init ──────────────────────────────────────────────
 
@@ -102,14 +102,15 @@ def _clear_reservations() -> None:
 _client: mqtt.Client | None = None
 
 
-def publish_state(state: str, reason: str | None = None) -> None:
+def publish_state(state: str, vehicle_id: str, reason: str | None = None) -> None:
     if _client is None:
         return
     payload: dict = {"state": state}
     if reason:
         payload["reason"] = reason
-    _client.publish(STATE_TOPIC, json.dumps(payload), qos=2, retain=True)
-    log("INFO", "SERVER", f"→ state={state}" + (f" ({reason})" if reason else ""))
+    topic = f"ramp/{vehicle_id}/state"
+    _client.publish(topic, json.dumps(payload), qos=2, retain=True)
+    log("INFO", "SERVER", f"→ [{vehicle_id}] state={state}" + (f" ({reason})" if reason else ""))
 
 
 # ── Ramp sequence ──────────────────────────────────────────────
@@ -132,7 +133,7 @@ def _wait_for_ramp() -> None:
         time.sleep(0.1)
 
 
-def _ramp_sequence() -> None:
+def _ramp_sequence(vehicle_id: str) -> None:
     global _sequence_running
 
     try:
@@ -140,10 +141,10 @@ def _ramp_sequence() -> None:
 
         _wait_for_door()
 
-        publish_state("deploying")
+        publish_state("deploying", vehicle_id)
         ramp.deploy()
         _wait_for_ramp()
-        publish_state("deployed")
+        publish_state("deployed", vehicle_id)
 
         log(
             "INFO",
@@ -152,24 +153,24 @@ def _ramp_sequence() -> None:
         )
         time.sleep(wait_seconds)
 
-        publish_state("retracting")
+        publish_state("retracting", vehicle_id)
         ramp.retract()
         _wait_for_ramp()
 
-        publish_state("done")
+        publish_state("done", vehicle_id)
         _clear_reservations()
-        publish_state("idle")
+        publish_state("idle", vehicle_id)
 
     except Exception as e:
         log("ERROR", "SERVER", f"Ramp sequence failed: {e}")
-        publish_state("error", reason=str(e))
+        publish_state("error", vehicle_id, reason=str(e))
 
     finally:
         with _lock:
             _sequence_running = False
 
 
-def _trigger_deploy() -> None:
+def _trigger_deploy(vehicle_id: str) -> None:
     global _sequence_running
     with _lock:
         if _sequence_running:
@@ -179,7 +180,7 @@ def _trigger_deploy() -> None:
             log("WARN", "SERVER", "Deploy requested but no active reservations")
             return
         _sequence_running = True
-    threading.Thread(target=_ramp_sequence, daemon=True).start()
+    threading.Thread(target=_ramp_sequence, args=(vehicle_id,), daemon=True).start()
 
 
 # ── MQTT callbacks ─────────────────────────────────────────────
@@ -192,10 +193,13 @@ def _on_connect(client, userdata, flags, rc, properties=None):
     log("INFO", "MQTT", f"Connected to {MQTT_URL}:{MQTT_PORT}")
     client.subscribe(CMD_TOPIC, qos=2)
     log("INFO", "MQTT", f"Subscribed to {CMD_TOPIC}")
-    publish_state("idle")
 
 
 def _on_message(client, userdata, msg: mqtt.MQTTMessage):
+    # Extract vehicle ID from topic: "ramp/{id}/cmd"
+    parts = msg.topic.split("/")
+    vehicle_id = parts[1] if len(parts) == 3 else VEHICLE_ID
+
     try:
         payload = json.loads(msg.payload)
     except Exception as e:
@@ -203,7 +207,7 @@ def _on_message(client, userdata, msg: mqtt.MQTTMessage):
         return
 
     action = payload.get("action")
-    log("INFO", "MQTT", f"← cmd action={action} payload={payload}")
+    log("INFO", "MQTT", f"← [{vehicle_id}] cmd action={action} payload={payload}")
 
     if action == "new_reservation":
         rid = payload.get("id")
@@ -216,7 +220,7 @@ def _on_message(client, userdata, msg: mqtt.MQTTMessage):
             _remove_reservation(rid)
 
     elif action == "deploy":
-        _trigger_deploy()
+        _trigger_deploy(vehicle_id)
 
     else:
         log("WARN", "MQTT", f"Unknown action: {action}")
@@ -243,9 +247,9 @@ def main():
     if MQTT_USE_TLS:
         client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS_CLIENT)
 
-    # Will: broker publishes this if we disconnect ungracefully
+    # Will: broker publishes this if we disconnect ungracefully (uses VEHICLE_ID as fallback)
     client.will_set(
-        STATE_TOPIC,
+        f"ramp/{VEHICLE_ID}/state",
         json.dumps({"state": "error", "reason": "disconnected"}),
         qos=2,
         retain=True,
@@ -273,7 +277,7 @@ if __name__ == "__main__":
     finally:
         if _client is not None:
             try:
-                publish_state("idle", reason="shutdown")
+                publish_state("idle", VEHICLE_ID, reason="shutdown")
                 _client.disconnect()
             except Exception:
                 pass
