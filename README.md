@@ -113,14 +113,18 @@ git clone git@github.com:rangelovkiril/rampme-hardware.git
 
 Create `~/rampme-hardware/.env` (gitignored) with `VEHICLE_ID`, `MQTT_URL`,
 `MQTT_PORT`, `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_TLS`, then install the
-systemd service so it starts on boot:
+systemd **user** service (runs as `pi`, not root) so it starts on boot:
 
 ```bash
 chmod 600 ~/rampme-hardware/.env
-sudo cp deploy/rampme.service /etc/systemd/system/rampme.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now rampme.service
+mkdir -p ~/.config/systemd/user
+cp deploy/rampme.user.service ~/.config/systemd/user/rampme.service
+sudo loginctl enable-linger $USER   # start on boot without an active login session
+systemctl --user daemon-reload
+systemctl --user enable --now rampme.service
 ```
+
+Logs: `journalctl --user-unit rampme.service -f`
 
 ---
 
