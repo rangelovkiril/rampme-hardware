@@ -3,12 +3,13 @@
 server.py — Hardware MQTT client for the RampMe ramp.
 
 Topics:
-  ramp/+/cmd     (subscribe — any vehicle ID)
+  ramp/{VEHICLE_ID}/cmd     (subscribe — this vehicle only, not a wildcard: a
+                             unit must never react to another vehicle's command)
     { action: "new_reservation",    id: <int> }
     { action: "cancel_reservation", id: <int> }
     { action: "deploy" }
 
-  ramp/{id}/state   (publish, retained — mirrors the ID from the incoming cmd topic)
+  ramp/{VEHICLE_ID}/state   (publish, retained)
     { state: "idle" | "deploying" | "deployed" | "retracting" | "done" | "error",
       reason?: str }
 
@@ -40,6 +41,15 @@ GPIO.setmode(GPIO.BCM)
 
 VEHICLE_ID = os.environ.get("VEHICLE_ID", "2634")
 
+# Reject MQTT wildcard/separator characters so CMD_TOPIC below always
+# resolves to exactly this vehicle's topic, never a broader subscription.
+_INVALID_VEHICLE_ID_CHARS = ("+", "#", "/")
+if not VEHICLE_ID or any(c in VEHICLE_ID for c in _INVALID_VEHICLE_ID_CHARS):
+    raise SystemExit(
+        f"Invalid VEHICLE_ID {VEHICLE_ID!r}: must be non-empty and must not "
+        f"contain any of {_INVALID_VEHICLE_ID_CHARS}"
+    )
+
 MQTT_URL = os.environ.get("MQTT_URL", "broker.hivemq.com")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "8883"))
 MQTT_USERNAME = os.environ.get("MQTT_USERNAME")
@@ -49,8 +59,7 @@ MQTT_USE_TLS = os.environ.get("MQTT_TLS", "true").lower() == "true"
 PER_PASSENGER_SECONDS = 20
 DOOR_POLL_INTERVAL = 0.5
 
-CMD_TOPIC = "ramp/+/cmd"
-# STATE_TOPIC is built dynamically from the incoming cmd topic's vehicle ID
+CMD_TOPIC = f"ramp/{VEHICLE_ID}/cmd"
 
 # ── Hardware init ──────────────────────────────────────────────
 
@@ -196,10 +205,6 @@ def _on_connect(client, userdata, flags, rc, properties=None):
 
 
 def _on_message(client, userdata, msg: mqtt.MQTTMessage):
-    # Extract vehicle ID from topic: "ramp/{id}/cmd"
-    parts = msg.topic.split("/")
-    vehicle_id = parts[1] if len(parts) == 3 else VEHICLE_ID
-
     try:
         payload = json.loads(msg.payload)
     except Exception as e:
@@ -207,7 +212,7 @@ def _on_message(client, userdata, msg: mqtt.MQTTMessage):
         return
 
     action = payload.get("action")
-    log("INFO", "MQTT", f"← [{vehicle_id}] cmd action={action} payload={payload}")
+    log("INFO", "MQTT", f"← [{VEHICLE_ID}] cmd action={action} payload={payload}")
 
     if action == "new_reservation":
         rid = payload.get("id")
@@ -220,7 +225,7 @@ def _on_message(client, userdata, msg: mqtt.MQTTMessage):
             _remove_reservation(rid)
 
     elif action == "deploy":
-        _trigger_deploy(vehicle_id)
+        _trigger_deploy(VEHICLE_ID)
 
     else:
         log("WARN", "MQTT", f"Unknown action: {action}")
