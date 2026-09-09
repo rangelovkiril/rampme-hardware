@@ -1,0 +1,36 @@
+# User-level systemd unit (not a system unit) — installed as
+# ~/.config/systemd/user/rampme.service on pi-ht.
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/rampme.user.service ~/.config/systemd/user/rampme.service
+#   sudo loginctl enable-linger $USER   # start on boot without an active login session
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now rampme.service
+#
+# Logs: journalctl --user-unit rampme.service -f
+#
+# Requires ~/rampme-hardware/.env (gitignored, chmod 600) with
+# VEHICLE_ID, MQTT_URL, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD, MQTT_TLS.
+#
+# PYTHONUNBUFFERED=1 is required — without it, Python block-buffers stdout
+# when it isn't a TTY, so log lines sit in the buffer instead of reaching
+# the journal until it fills up or the process exits.
+
+[Unit]
+Description=RampMe Hardware MQTT Client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=%h/rampme-hardware
+EnvironmentFile=%h/rampme-hardware/.env
+
+ExecStart=%h/rampme-hardware/venv/bin/python3 server.py
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
