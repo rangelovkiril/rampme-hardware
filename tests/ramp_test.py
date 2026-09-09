@@ -20,7 +20,7 @@ ramp = Ramp(
     deploy_button=deploy_button,
     retract_button=retract_button,
     buzzer=None,
-    mock_door=door,
+    mock_door=None,
 )
 
 try:
@@ -33,14 +33,6 @@ try:
     time.sleep(2)
 
     print("\n=== Test 2: HTTP deploy — clear the LiDAR ===")
-    ramp.retract()
-    time.sleep(0.3)
-    while ramp.is_moving:
-        time.sleep(0.1)
-    print(f"Status: {ramp.get_status()}")
-    time.sleep(2)
-
-    print("\n=== Test 3: HTTP retract ===")
     ramp.retract()
     time.sleep(0.3)
     while ramp.is_moving:

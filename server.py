@@ -119,7 +119,11 @@ def publish_state(state: str, vehicle_id: str, reason: str | None = None) -> Non
         payload["reason"] = reason
     topic = f"ramp/{vehicle_id}/state"
     _client.publish(topic, json.dumps(payload), qos=2, retain=True)
-    log("INFO", "SERVER", f"→ [{vehicle_id}] state={state}" + (f" ({reason})" if reason else ""))
+    log(
+        "INFO",
+        "SERVER",
+        f"→ [{vehicle_id}] state={state}" + (f" ({reason})" if reason else ""),
+    )
 
 
 # ── Ramp sequence ──────────────────────────────────────────────

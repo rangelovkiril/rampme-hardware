@@ -7,7 +7,7 @@ from drivers.push_button import Button
 from drivers.stepper_motor import StepperMotor
 from utils.logger import log
 
-DEPLOY_STEPS = 80000
+DEPLOY_STEPS = 27000
 
 
 class Ramp:
