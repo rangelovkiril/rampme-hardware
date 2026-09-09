@@ -41,6 +41,15 @@ GPIO.setmode(GPIO.BCM)
 
 VEHICLE_ID = os.environ.get("VEHICLE_ID", "2634")
 
+# Reject MQTT wildcard/separator characters so CMD_TOPIC below always
+# resolves to exactly this vehicle's topic, never a broader subscription.
+_INVALID_VEHICLE_ID_CHARS = ("+", "#", "/")
+if not VEHICLE_ID or any(c in VEHICLE_ID for c in _INVALID_VEHICLE_ID_CHARS):
+    raise SystemExit(
+        f"Invalid VEHICLE_ID {VEHICLE_ID!r}: must be non-empty and must not "
+        f"contain any of {_INVALID_VEHICLE_ID_CHARS}"
+    )
+
 MQTT_URL = os.environ.get("MQTT_URL", "broker.hivemq.com")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "8883"))
 MQTT_USERNAME = os.environ.get("MQTT_USERNAME")
